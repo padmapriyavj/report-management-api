@@ -175,3 +175,78 @@ export function handleUpdateReport(req: Request, res: Response): void {
 
   res.status(200).json(updated);
 }
+export function handleUploadAttachment(req: Request, res: Response): void {
+  if (!req.user) {
+    res.status(401).json({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required",
+        traceId: req.traceId,
+      },
+    });
+    return;
+  }
+
+  if (!req.file) {
+    res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "No file provided",
+        traceId: req.traceId,
+      },
+    });
+    return;
+  }
+
+  const id = req.params.id as string;
+
+  const attachment = reportService.addAttachment(id, req.file, req.user.userId);
+
+  res.status(201).json(attachment);
+}
+
+export async function handleDownloadAttachment(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const reportId = req.params.id as string;
+  const attachmentId = req.params.attachmentId as string;
+  const token = req.query.token as string;
+
+  if (!token) {
+    res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Download token is required",
+        traceId: req.traceId,
+      },
+    });
+    return;
+  }
+
+  const { buffer, attachment } = reportService.getAttachmentFile(
+    reportId,
+    attachmentId,
+    token
+  );
+
+  const fileBuffer = await buffer;
+
+  if (!fileBuffer) {
+    res.status(404).json({
+      error: {
+        code: "NOT_FOUND",
+        message: "File not found on storage",
+        traceId: req.traceId,
+      },
+    });
+    return;
+  }
+
+  res.setHeader("Content-Type", attachment.mimeType);
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${attachment.filename}"`
+  );
+  res.send(fileBuffer);
+}

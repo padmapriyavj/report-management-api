@@ -9,6 +9,11 @@ import { Role } from "../models/auth.model";
 import { AppError } from "../middleware/error.middleware";
 import { recordAudit } from "./audit.service";
 import { validateTransition } from "./transition.service";
+import { Attachment } from "../models/attachment.model";
+import { LocalDiskStorage } from "../storage/local.storage";
+import { config } from "../config";
+import { verifyDownloadToken } from "../utils/download-token";
+import { ALLOWED_MIME_TYPES } from "../config";
 
 interface GetReportOptions {
   view: "full" | "summary";
@@ -38,6 +43,7 @@ interface UpdateContext {
 }
 
 const reportRepository = new ReportRepository();
+const fileStorage = new LocalDiskStorage();
 
 function buildEntry(input: CreateEntryInput, userId: string): Entry {
   return {
@@ -55,12 +61,13 @@ export function createReport(input: CreateReportInput, userId: string): Report {
   const businessKey = reportRepository.generateBusinessKey();
 
   if (reportRepository.existsByBusinessKey(businessKey)) {
-    throw new Error("BUSINESS_KEY_CONFLICT");
+    throw new AppError(409, "CONFLICT", "Business key conflict");
   }
 
   const entries = (sanitized.entries || []).map((entry) =>
     buildEntry(entry, userId)
   );
+
   const report: Report = {
     id: uuidv4(),
     businessKey,
@@ -80,6 +87,7 @@ export function createReport(input: CreateReportInput, userId: string): Report {
     attachments: [],
     metadata: sanitized.metadata || {},
   };
+
   const created = reportRepository.create(report);
 
   logger.info({
@@ -91,6 +99,7 @@ export function createReport(input: CreateReportInput, userId: string): Report {
 
   return created;
 }
+
 export function getReportById(id: string, options: GetReportOptions) {
   const report = reportRepository.findById(id);
 
@@ -100,7 +109,6 @@ export function getReportById(id: string, options: GetReportOptions) {
 
   const metrics = calculateMetrics(report);
 
-  // Summary view — flat object, no nested arrays
   if (options.view === "summary") {
     return {
       id: report.id,
@@ -272,4 +280,116 @@ export function updateReport(
   });
 
   return updated;
+}
+
+export function addAttachment(
+  reportId: string,
+  file: Express.Multer.File,
+  userId: string
+): Attachment {
+  const report = reportRepository.findById(reportId);
+
+  if (!report) {
+    throw new AppError(
+      404,
+      "NOT_FOUND",
+      `Report with id '${reportId}' not found`
+    );
+  }
+
+  if (report.attachments.length >= config.upload.maxAttachmentsPerReport) {
+    throw new AppError(
+      400,
+      "ATTACHMENT_LIMIT",
+      `Maximum ${config.upload.maxAttachmentsPerReport} attachments per report`
+    );
+  }
+
+  const attachmentId = uuidv4();
+  const storageKey = `${reportId}/${attachmentId}-${file.originalname}`;
+
+  fileStorage.put(storageKey, file.buffer, {
+    filename: file.originalname,
+    mimeType: file.mimetype,
+    sizeBytes: file.size,
+    uploadedBy: userId,
+  });
+
+  const token = fileStorage.generateSignedUrl(
+    storageKey,
+    config.downloadToken.ttlSeconds
+  );
+
+  const now = new Date();
+  const expiresAt = new Date(
+    now.getTime() + config.downloadToken.ttlSeconds * 1000
+  );
+  type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
+
+  const attachment: Attachment = {
+    id: attachmentId,
+    filename: file.originalname,
+    mimeType: file.mimetype as AllowedMimeType,
+    sizeBytes: file.size,
+    storagePath: storageKey,
+    uploadedBy: userId,
+    uploadedAt: now.toISOString(),
+    downloadToken: token,
+    tokenExpiresAt: expiresAt.toISOString(),
+  };
+
+  report.attachments.push(attachment);
+  reportRepository.update(report);
+
+  logger.info({
+    type: "attachment_uploaded",
+    reportId,
+    attachmentId,
+    filename: file.originalname,
+    sizeBytes: file.size,
+    userId,
+  });
+
+  return attachment;
+}
+
+export function getAttachmentFile(
+  reportId: string,
+  attachmentId: string,
+  token: string
+): { buffer: Promise<Buffer | null>; attachment: Attachment } {
+  const report = reportRepository.findById(reportId);
+
+  if (!report) {
+    throw new AppError(
+      404,
+      "NOT_FOUND",
+      `Report with id '${reportId}' not found`
+    );
+  }
+
+  const attachment = report.attachments.find((a) => a.id === attachmentId);
+
+  if (!attachment) {
+    throw new AppError(
+      404,
+      "NOT_FOUND",
+      `Attachment with id '${attachmentId}' not found`
+    );
+  }
+
+  const isExpired = new Date() > new Date(attachment.tokenExpiresAt);
+  if (isExpired) {
+    throw new AppError(410, "GONE", "Download token has expired");
+  }
+
+  const isValid = verifyDownloadToken(token, attachment.storagePath);
+  if (!isValid) {
+    throw new AppError(403, "FORBIDDEN", "Invalid download token");
+  }
+
+  return {
+    buffer: fileStorage.get(attachment.storagePath),
+    attachment,
+  };
 }

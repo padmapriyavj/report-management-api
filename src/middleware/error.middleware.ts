@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import multer from "multer";
 import { logger } from "./logger.middleware";
 
 export class AppError extends Error {
@@ -19,6 +20,32 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
+  if (err instanceof multer.MulterError) {
+    const statusCode = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+    res.status(statusCode).json({
+      error: {
+        code:
+          err.code === "LIMIT_FILE_SIZE"
+            ? "PAYLOAD_TOO_LARGE"
+            : "VALIDATION_ERROR",
+        message: err.message,
+        traceId: req.traceId,
+      },
+    });
+    return;
+  }
+
+  if (err.message?.includes("File type")) {
+    res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: err.message,
+        traceId: req.traceId,
+      },
+    });
+    return;
+  }
+
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       error: {

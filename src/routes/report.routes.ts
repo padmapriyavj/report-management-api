@@ -4,7 +4,10 @@ import {
   handleGetReport,
   handleCreateReport,
   handleUpdateReport,
+  handleDownloadAttachment,
+  handleUploadAttachment,
 } from "../controllers/report.controller";
+import { upload } from "../middleware/upload.middleware";
 
 const router = Router();
 
@@ -25,6 +28,22 @@ router.put(
   authenticate,
   authorize(["editor", "admin"]),
   handleUpdateReport
+);
+
+// POST /reports/:id/attachment — editors and admins only
+router.post(
+  "/:id/attachment",
+  authenticate,
+  authorize(["editor", "admin"]),
+  upload.single("file"),
+  handleUploadAttachment
+);
+
+// GET /reports/:id/attachments/:attachmentId/download — all authenticated users
+router.get(
+  "/:id/attachments/:attachmentId/download",
+  authenticate,
+  handleDownloadAttachment
 );
 
 export default router;
