@@ -63,6 +63,32 @@ export const reportSchema = createReportSchema.extend({
   comments: z.array(commentSchema).default([]),
   attachments: z.array(attachmentSchema).default([]),
 });
+export const updateReportSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(3, "Title must be at least 3 characters")
+      .max(200, "Title must not exceed 200 characters")
+      .optional(),
+    description: z
+      .string()
+      .trim()
+      .max(5000, "Description must not exceed 5,000 characters")
+      .optional(),
+    status: reportStatusEnum.optional(),
+    priority: priorityEnum.optional(),
+    entries: z.array(createEntrySchema).optional(),
+    metadata: z
+      .record(z.string(), z.union([z.string(), z.number()]))
+      .refine(
+        (obj) => Object.keys(obj).length <= 10,
+        "Metadata must not exceed 10 keys"
+      )
+      .optional(),
+  })
+  .strict();
 
 export type CreateReportInput = z.infer<typeof createReportSchema>;
 export type Report = z.infer<typeof reportSchema>;
+export type UpdateReportInput = z.infer<typeof updateReportSchema>;

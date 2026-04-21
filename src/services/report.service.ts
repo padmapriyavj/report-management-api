@@ -5,6 +5,10 @@ import { sanitizeObject } from "../utils/sanitize";
 import { CreateReportInput, Report } from "../models/report.model";
 import { logger } from "../middleware/logger.middleware";
 import { calculateMetrics } from "./metrics.service";
+import { Role } from "../models/auth.model";
+import { AppError } from "../middleware/error.middleware";
+import { recordAudit } from "./audit.service";
+import { validateTransition } from "./transition.service";
 
 interface GetReportOptions {
   view: "full" | "summary";
@@ -15,6 +19,22 @@ interface GetReportOptions {
   sortOrder: "asc" | "desc";
   filterPriority?: string;
   filterStatus?: string;
+}
+
+interface UpdateReportInput {
+  title?: string;
+  description?: string;
+  status?: string;
+  priority?: string;
+  entries?: CreateEntryInput[];
+  metadata?: Record<string, string | number>;
+}
+
+interface UpdateContext {
+  userId: string;
+  role: Role;
+  version: number;
+  traceId?: string;
 }
 
 const reportRepository = new ReportRepository();
@@ -173,4 +193,83 @@ export function getReportById(id: string, options: GetReportOptions) {
   return response;
 }
 
+export function updateReport(
+  id: string,
+  input: UpdateReportInput,
+  context: UpdateContext
+): Report {
+  const report = reportRepository.findById(id);
 
+  if (!report) {
+    throw new AppError(404, "NOT_FOUND", `Report with id '${id}' not found`);
+  }
+
+  if (report.status === "archived") {
+    throw new AppError(
+      422,
+      "REPORT_ARCHIVED",
+      "Archived reports cannot be modified"
+    );
+  }
+
+  if (report.version !== context.version) {
+    throw new AppError(409, "CONFLICT", "Version mismatch", [
+      {
+        field: "version",
+        message: `Expected version ${context.version}, but current version is ${report.version}`,
+        currentVersion: report.version,
+      },
+    ]);
+  }
+
+  if (input.status && input.status !== report.status) {
+    validateTransition(report, input.status, context.role);
+  }
+
+  const sanitized = sanitizeObject(input);
+
+  const before = { ...report };
+
+  const now = new Date().toISOString();
+
+  if (sanitized.title !== undefined) report.title = sanitized.title;
+  if (sanitized.description !== undefined)
+    report.description = sanitized.description;
+  if (sanitized.status !== undefined)
+    report.status = sanitized.status as Report["status"];
+  if (sanitized.priority !== undefined)
+    report.priority = sanitized.priority as Report["priority"];
+  if (sanitized.metadata !== undefined) {
+    report.metadata = { ...report.metadata, ...sanitized.metadata };
+  }
+
+  if (sanitized.entries !== undefined) {
+    report.entries = sanitized.entries.map((entry) =>
+      buildEntry(entry, context.userId)
+    );
+  }
+
+  report.updatedAt = now;
+  report.updatedBy = context.userId;
+  report.version += 1;
+
+  const updated = reportRepository.update(report);
+
+  recordAudit(
+    context.userId,
+    id,
+    before as unknown as Record<string, unknown>,
+    updated as unknown as Record<string, unknown>,
+    context.traceId
+  );
+
+  logger.info({
+    type: "report_updated",
+    reportId: id,
+    newVersion: updated.version,
+    userId: context.userId,
+    traceId: context.traceId,
+  });
+
+  return updated;
+}

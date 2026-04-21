@@ -5,6 +5,7 @@ import "./types/express";
 import reportRoutes from "./routes/report.routes";
 import jwt from "jsonwebtoken";
 import { config } from "./config";
+import { errorHandler } from "./middleware/error.middleware";
 
 const app = express();
 
@@ -34,5 +35,7 @@ app.post("/auth/token", (req, res) => {
   });
   res.json({ token });
 });
+
+app.use(errorHandler);
 
 export default app;
