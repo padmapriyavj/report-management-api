@@ -1,0 +1,403 @@
+{
+  "info": {
+    "_postman_id": "4e53c8ae-bf88-485d-985c-8f7eca388410",
+    "name": "MedLaunch API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "23044301"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Editor Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.environment.set(\"editorToken\", res.token);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"userId\": \"user-1\", \"role\": \"editor\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "token"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Reader Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.environment.set(\"readerToken\", res.token);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"userId\": \"user-2\", \"role\": \"reader\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "token"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Admin Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.environment.set(\"adminToken\", res.token);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"userId\": \"user-3\", \"role\": \"admin\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "token"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Report",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.environment.set(\"reportId\", res.id);",
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{editorToken}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"My First Report\",\n  \"description\": \"Testing the API\"\n}\n",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reports",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reports"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Report",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTEiLCJyb2xlIjoiZWRpdG9yIiwiaWF0IjoxNzc2NzQ1MTI4LCJleHAiOjE3NzY3NDg3Mjh9.kqxs4NemXSYkiS17R0eLacVmZkeDcVNFpAoUHWnvGvI",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{editorToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reports/ddfa6178-6247-4376-aeec-3931ed8797c9",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reports",
+            "ddfa6178-6247-4376-aeec-3931ed8797c9"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Summary view",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{editorToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reports/{{reportId}}?view=summary",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reports",
+            "{{reportId}}"
+          ],
+          "query": [
+            {
+              "key": "view",
+              "value": "summary"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Not Found",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{editorToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reports/fake-id-123",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reports",
+            "fake-id-123"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update Report",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}",
+            "type": "text"
+          },
+          {
+            "key": "If-Match",
+            "value": "4",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "test-key-1",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"approved\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reports/{{reportId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reports",
+            "{{reportId}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Attachment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{editorToken}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "uuid": "efe11418-52b7-423d-a882-2676ae428a24",
+              "src": "/Users/padmapriyavijayaragavarengaraj/Downloads/CPSC_335_Project_3_SP26.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reports/{{reportId}}/attachment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reports",
+            "{{reportId}}",
+            "attachment"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Download Attachment",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{editorToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reports/{{reportId}}/attachments/a558f14f-ce3a-403a-a1f1-ed4f30c39432/download?token=e45f375422a863880e019df147c8de7614fcb419dc0e4398b0ecc2639477b530:1776787728151",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reports",
+            "{{reportId}}",
+            "attachments",
+            "a558f14f-ce3a-403a-a1f1-ed4f30c39432",
+            "download"
+          ],
+          "query": [
+            {
+              "key": "token",
+              "value": "e45f375422a863880e019df147c8de7614fcb419dc0e4398b0ecc2639477b530:1776787728151"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
