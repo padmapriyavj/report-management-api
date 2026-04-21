@@ -1,27 +1,29 @@
 import express from "express";
 import helmet from "helmet";
 import { requestLogger } from "./middleware/logger.middleware";
-import "./types/express";
+import "./types/express"; // Augment Express types
 import reportRoutes from "./routes/report.routes";
-import jwt from "jsonwebtoken";
-import { config } from "./config";
 import { errorHandler } from "./middleware/error.middleware";
 import { initializeHandlers } from "./queue/handlers";
 
+// Register job handlers before processing any requests
 initializeHandlers();
 
 const app = express();
 
+// Security headers (HSTS, X-Frame-Options, etc.)
 app.use(helmet());
 
+// Parse JSON request bodies
 app.use(express.json());
 
+// Log all requests with trace IDs
 app.use(requestLogger);
 
-//health check endpoint
-
+// Mount the report API routes
 app.use("/reports", reportRoutes);
 
+// Simple health check for load balancers and monitoring
 app.get("/health", (_req, res) => {
   res.status(200).json({
     status: "healthy",
@@ -30,15 +32,7 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// Temporary: test token generator (remove before submission)
-app.post("/auth/token", (req, res) => {
-  const { userId, role } = req.body;
-  const token = jwt.sign({ userId, role }, config.jwt.secret, {
-    expiresIn: config.jwt.expiresIn,
-  });
-  res.json({ token });
-});
-
+// Centralized error handler - must be last
 app.use(errorHandler);
 
 export default app;

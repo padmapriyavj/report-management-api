@@ -1,16 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config";
-import { jwtPayloadSchema, JwtPayload } from "../models/auth.model";
+import { jwtPayloadSchema } from "../models/auth.model";
 import { Role } from "../models/auth.model";
 
-export function authenticate(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
+/**
+ * Verify the JWT token from the Authorization header.
+ * Attaches the decoded user info to req.user for downstream use.
+ */
+export function authenticate(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
 
+  // Expect "Bearer <token>" format
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({
       error: {
@@ -24,8 +25,10 @@ export function authenticate(
   const token = authHeader.split(" ")[1];
 
   try {
+    // Verify signature and expiration
     const decoded = jwt.verify(token, config.jwt.secret);
 
+    // jwt.verify can return a string for some edge cases - we need an object
     if (typeof decoded === "string") {
       res.status(401).json({
         error: {
@@ -36,6 +39,7 @@ export function authenticate(
       return;
     }
 
+    // Validate the payload has the fields we expect (userId, role)
     const result = jwtPayloadSchema.safeParse(decoded);
 
     if (!result.success) {
@@ -54,19 +58,23 @@ export function authenticate(
     res.status(401).json({
       error: {
         code: "UNAUTHORIZED",
-        message:
-          err instanceof jwt.TokenExpiredError
-            ? "Token has expired"
-            : "Invalid token",
+        message: err instanceof jwt.TokenExpiredError ? "Token has expired" : "Invalid token",
       },
     });
   }
 }
 
+/**
+ * Check if the authenticated user has one of the allowed roles.
+ * Use after authenticate() middleware.
+ *
+ * Example: authorize(["editor", "admin"]) allows editors and admins.
+ */
 export function authorize(allowedRoles: Role[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const user = req.user;
 
+    // Should not happen if authenticate() ran first, but just in case
     if (!user) {
       res.status(401).json({
         error: {

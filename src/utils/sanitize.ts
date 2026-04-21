@@ -2,6 +2,10 @@ export function stripHtml(input: string): string {
   return input.replace(/<[^>]*>/g, "").trim();
 }
 
+/**
+ * Recursively sanitize all strings in an object or array.
+ * Preserves the structure, just cleans the string values.
+ */
 export function sanitizeObject<T>(obj: T): T {
   if (typeof obj === "string") {
     return stripHtml(obj) as T;
@@ -19,5 +23,6 @@ export function sanitizeObject<T>(obj: T): T {
     return result as T;
   }
 
+  // Numbers, booleans, null, undefined pass through unchanged
   return obj;
 }

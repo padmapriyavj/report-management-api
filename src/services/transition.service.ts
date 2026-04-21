@@ -6,7 +6,7 @@ import { Report } from "../models/report.model";
   Status Transition Matrix:
   
   draft      -> in_review  (editor+, if entries ≥ 1)
-  in_review  -> draft      (editor+)
+  in_review  -> draft      (editor+, for revisions)
   in_review  -> approved   (admin only)
   approved   -> archived   (editor+)
   archived   -> (nothing)  (immutable)
@@ -45,9 +45,13 @@ const transitionMatrix: Record<string, Record<string, TransitionRule>> = {
       allowedRoles: ["editor", "admin"],
     },
   },
-  archived: {},
+  archived: {}, // No transitions out - archived is permanent
 };
 
+/**
+ * Check if a status transition is allowed.
+ * Throws AppError if the transition is invalid or user lacks permission.
+ */
 export function validateTransition(
   report: Report,
   newStatus: string,

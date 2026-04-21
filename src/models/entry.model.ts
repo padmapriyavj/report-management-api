@@ -1,9 +1,12 @@
 import { z } from "zod";
 
+// Entry lifecycle: starts pending, can be marked completed or cancelled
 export const entryStatusEnum = z.enum(["pending", "completed", "cancelled"]);
+
+// Shared priority levels used by both entries and reports
 export const priorityEnum = z.enum(["low", "medium", "high", "critical"]);
 
-// The Schema for creating a new entry (what the client sends)
+// What clients send when creating an entry
 export const createEntrySchema = z
   .object({
     content: z
@@ -11,13 +14,13 @@ export const createEntrySchema = z
       .trim()
       .min(1, "Content is required")
       .max(10000, "Content must not exceed 10000 characters"),
-    amount: z.number().optional(),
+    amount: z.number().optional(), // For summing/aggregation in metrics
     priority: priorityEnum.optional().default("medium"),
     status: entryStatusEnum.default("pending"),
   })
   .strict();
 
-//Full entry as stores in memory (includes server-generated fields)
+// Full entry with server-generated fields (id, timestamps, author)
 export const entrySchema = createEntrySchema.extend({
   id: z.uuid(),
   createdAt: z.iso.datetime(),

@@ -16,6 +16,6 @@
     "sourceMap": true,
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*", "src/types/**/*.d.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "src/types/**/*.d.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist", "vitest.config.ts", "eslint.config.js"]
 }

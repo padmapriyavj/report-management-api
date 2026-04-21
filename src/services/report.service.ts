@@ -16,6 +16,7 @@ import { verifyDownloadToken } from "../utils/download-token";
 import { ALLOWED_MIME_TYPES } from "../config";
 import { enqueueJob } from "../queue/job.queue";
 
+// Options for customizing how a report is fetched
 interface GetReportOptions {
   view: "full" | "summary";
   include: string[];
@@ -27,6 +28,7 @@ interface GetReportOptions {
   filterStatus?: string;
 }
 
+// Fields that can be updated on a report
 interface UpdateReportInput {
   title?: string;
   description?: string;
@@ -36,6 +38,7 @@ interface UpdateReportInput {
   metadata?: Record<string, string | number>;
 }
 
+// Who's making the update and with what version
 interface UpdateContext {
   userId: string;
   role: Role;
@@ -43,9 +46,13 @@ interface UpdateContext {
   traceId?: string;
 }
 
+// Singleton instances - in production these would be injected
 const reportRepository = new ReportRepository();
 const fileStorage = new LocalDiskStorage();
 
+/**
+ * Create a full entry from input by adding server-generated fields.
+ */
 function buildEntry(input: CreateEntryInput, userId: string): Entry {
   return {
     ...input,
@@ -55,6 +62,10 @@ function buildEntry(input: CreateEntryInput, userId: string): Entry {
   };
 }
 
+/**
+ * Create a new report with server-generated fields.
+ * Sanitizes input, generates IDs, and enqueues a notification job.
+ */
 export function createReport(input: CreateReportInput, userId: string): Report {
   const sanitized = sanitizeObject(input);
 
@@ -105,6 +116,10 @@ export function createReport(input: CreateReportInput, userId: string): Report {
   return created;
 }
 
+/**
+ * Fetch a report with optional filtering, sorting, and pagination.
+ * Returns null if not found, or shaped data based on view/include options.
+ */
 export function getReportById(id: string, options: GetReportOptions) {
   const report = reportRepository.findById(id);
 
@@ -114,6 +129,7 @@ export function getReportById(id: string, options: GetReportOptions) {
 
   const metrics = calculateMetrics(report);
 
+  // Summary view is a flattened response for list/dashboard views
   if (options.view === "summary") {
     return {
       id: report.id,
@@ -129,6 +145,7 @@ export function getReportById(id: string, options: GetReportOptions) {
     };
   }
 
+  // Full view: filter, sort, and paginate entries
   let filteredEntries = [...report.entries];
 
   if (options.filterPriority) {
@@ -206,6 +223,10 @@ export function getReportById(id: string, options: GetReportOptions) {
   return response;
 }
 
+/**
+ * Update a report with optimistic concurrency control.
+ * Validates status transitions, records audit trail, and increments version.
+ */
 export function updateReport(
   id: string,
   input: UpdateReportInput,
@@ -225,6 +246,7 @@ export function updateReport(
     );
   }
 
+  // Optimistic locking: reject if client has stale version
   if (report.version !== context.version) {
     throw new AppError(409, "CONFLICT", "Version mismatch", [
       {
@@ -235,12 +257,14 @@ export function updateReport(
     ]);
   }
 
+  // Check if the status change is allowed for this user's role
   if (input.status && input.status !== report.status) {
     validateTransition(report, input.status, context.role);
   }
 
   const sanitized = sanitizeObject(input);
 
+  // Snapshot for audit trail
   const before = { ...report };
 
   const now = new Date().toISOString();
@@ -287,6 +311,10 @@ export function updateReport(
   return updated;
 }
 
+/**
+ * Upload a file attachment to a report.
+ * Stores the file, generates a download token, and updates the report.
+ */
 export function addAttachment(
   reportId: string,
   file: Express.Multer.File,
@@ -358,6 +386,10 @@ export function addAttachment(
   return attachment;
 }
 
+/**
+ * Retrieve an attachment file for download.
+ * Validates the download token and checks expiration before serving.
+ */
 export function getAttachmentFile(
   reportId: string,
   attachmentId: string,

@@ -2,10 +2,14 @@ import multer from "multer";
 import { config, ALLOWED_MIME_TYPES } from "../config";
 
 export const upload = multer({
+  // Store in memory - we will write to disk in the storage service
   storage: multer.memoryStorage(),
+
   limits: {
-    fileSize: config.upload.maxFileSize,
+    fileSize: config.upload.maxFileSize, // 10 MB
   },
+
+  // Only allow specific file types (PDF, images, CSV, Excel)
   fileFilter: (_req, file, cb) => {
     if (
       ALLOWED_MIME_TYPES.includes(

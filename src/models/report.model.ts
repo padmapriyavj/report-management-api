@@ -3,6 +3,7 @@ import { createEntrySchema, entrySchema, priorityEnum } from "./entry.model";
 import { commentSchema } from "./comment.model";
 import { attachmentSchema } from "./attachment.model";
 
+// Report lifecycle states - see transition.service.ts for allowed transitions
 export const reportStatusEnum = z.enum([
   "draft",
   "in_review",
@@ -10,8 +11,7 @@ export const reportStatusEnum = z.enum([
   "archived",
 ]);
 
-//Schema for creating a report (what the client sends)
-
+// What clients send when creating a report
 export const createReportSchema = z
   .object({
     title: z
@@ -43,10 +43,10 @@ export const createReportSchema = z
   })
   .strict();
 
-//Full report as stored in memory
-
+// Full report with all server-generated fields
 export const reportSchema = createReportSchema.extend({
   id: z.uuid(),
+  // Human-readable ID like RPT-2026-0001, auto-generated
   businessKey: z
     .string()
     .regex(
@@ -58,11 +58,13 @@ export const reportSchema = createReportSchema.extend({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   updatedBy: z.string().min(1),
-  version: z.number().int().positive(),
+  version: z.number().int().positive(), // For optimistic concurrency control
   entries: z.array(entrySchema),
   comments: z.array(commentSchema).default([]),
   attachments: z.array(attachmentSchema).default([]),
 });
+
+// Partial updates - all fields optional
 export const updateReportSchema = z
   .object({
     title: z

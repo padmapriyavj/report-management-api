@@ -17,16 +17,24 @@ interface DeadLetterEntry {
   error: string;
 }
 
+// Jobs that failed after all retries end up here
 const deadLetterQueue: DeadLetterEntry[] = [];
 
 type JobHandler = (payload: Record<string, unknown>) => Promise<void>;
 
+// Registry of handlers by job type
 const handlers = new Map<string, JobHandler>();
 
+/**
+ * Register a handler for a job type. Call at app startup.
+ */
 export function registerHandler(type: string, handler: JobHandler): void {
   handlers.set(type, handler);
 }
 
+/**
+ * Add a job to the queue. Processing starts immediately in the background.
+ */
 export async function enqueueJob(
   id: string,
   type: string,
@@ -47,9 +55,14 @@ export async function enqueueJob(
     jobType: job.type,
   });
 
+  // Fire and forget - don't await so we don't block the API
   processJob(job);
 }
 
+/**
+ * Process a single job with retry logic.
+ * Runs in the background after enqueueJob returns.
+ */
 async function processJob(job: Job): Promise<void> {
   const handler = handlers.get(job.type);
 
@@ -89,6 +102,7 @@ async function processJob(job: Job): Promise<void> {
         error,
       });
 
+      // Exponential backoff before next attempt
       if (job.attempts < job.maxRetries) {
         const delay = config.queue.baseDelayMs * Math.pow(2, job.attempts - 1);
         await sleep(delay);
@@ -96,6 +110,7 @@ async function processJob(job: Job): Promise<void> {
     }
   }
 
+  // All retries exhausted - move to dead letter queue
   const dlqEntry: DeadLetterEntry = {
     job,
     failedAt: new Date().toISOString(),
@@ -117,6 +132,9 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Get a copy of all dead-lettered jobs for debugging/monitoring.
+ */
 export function getDeadLetterQueue(): DeadLetterEntry[] {
   return [...deadLetterQueue];
 }

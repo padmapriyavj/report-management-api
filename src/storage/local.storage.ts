@@ -14,10 +14,16 @@ export class LocalDiskStorage implements FileStorageService {
     this.ensureDirectory();
   }
 
+  /**
+   * Create the uploads directory if it doesn't exist.
+   */
   private async ensureDirectory(): Promise<void> {
     await fs.mkdir(this.basePath, { recursive: true });
   }
 
+  /**
+   * Write a file to disk. Creates subdirectories as needed.
+   */
   async put(
     key: string,
     buffer: Buffer,
@@ -29,6 +35,9 @@ export class LocalDiskStorage implements FileStorageService {
     await fs.writeFile(filePath, buffer);
   }
 
+  /**
+   * Read a file from disk. Returns null if file doesn't exist.
+   */
   async get(key: string): Promise<Buffer | null> {
     try {
       const filePath = path.join(this.basePath, key);
@@ -38,6 +47,9 @@ export class LocalDiskStorage implements FileStorageService {
     }
   }
 
+  /**
+   * Delete a file from disk.
+   */
   async delete(key: string): Promise<boolean> {
     try {
       const filePath = path.join(this.basePath, key);
@@ -48,6 +60,11 @@ export class LocalDiskStorage implements FileStorageService {
     }
   }
 
+  /**
+   * Generate a signed download token.
+   * Format: "signature:expiresTimestamp"
+   * The token is verified using HMAC-SHA256.
+   */
   generateSignedUrl(key: string, ttlSeconds: number): string {
     const expires = Date.now() + ttlSeconds * 1000;
     const payload = `${key}:${expires}`;

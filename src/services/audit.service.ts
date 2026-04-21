@@ -11,8 +11,13 @@ interface AuditEntry {
   }[];
 }
 
+// In-memory audit log - in production, this would go to a database
 const auditLog: AuditEntry[] = [];
 
+/**
+ * Record changes made to a report.
+ * Only logs fields that actually changed. Skips if nothing changed.
+ */
 export function recordAudit(
   userId: string,
   reportId: string,
@@ -22,6 +27,7 @@ export function recordAudit(
 ): void {
   const changes: AuditEntry["changes"] = [];
 
+  // Only track meaningful business fields, not timestamps or version
   const trackedFields = [
     "title",
     "description",
@@ -46,6 +52,7 @@ export function recordAudit(
     }
   }
 
+  // Don't create an entry if nothing changed
   if (changes.length === 0) return;
 
   const entry: AuditEntry = {
@@ -57,6 +64,7 @@ export function recordAudit(
 
   auditLog.push(entry);
 
+  // Also log to stdout so it shows up in log aggregators
   logger.info({
     type: "audit",
     traceId,
@@ -64,6 +72,9 @@ export function recordAudit(
   });
 }
 
+/**
+ * Get a copy of the full audit log for debugging.
+ */
 export function getAuditLog(): AuditEntry[] {
   return [...auditLog];
 }

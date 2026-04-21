@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Schema for creating a comment (what the client sends)
+// What clients send when adding a comment
 export const createCommentSchema = z
   .object({
     text: z
@@ -11,7 +11,7 @@ export const createCommentSchema = z
   })
   .strict();
 
-//Full comment as stored in memory
+// Full comment with server-generated fields
 export const commentSchema = createCommentSchema.extend({
   id: z.uuid(),
   authorId: z.string().min(1),

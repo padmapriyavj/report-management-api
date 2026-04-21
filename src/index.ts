@@ -1,8 +1,9 @@
-import app from './app';
-import { config } from './config';
+import app from "./app";
+import { config } from "./config";
+import { logger } from "./middleware/logger.middleware";
 
 const server = app.listen(config.port, () => {
-  console.log(`API running on port ${config.port}`);
+  logger.info({ port: config.port }, "MedLaunch API running");
 });
 
 export default server;
