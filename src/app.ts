@@ -6,6 +6,9 @@ import reportRoutes from "./routes/report.routes";
 import jwt from "jsonwebtoken";
 import { config } from "./config";
 import { errorHandler } from "./middleware/error.middleware";
+import { initializeHandlers } from "./queue/handlers";
+
+initializeHandlers();
 
 const app = express();
 

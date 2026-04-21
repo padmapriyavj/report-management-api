@@ -14,6 +14,7 @@ import { LocalDiskStorage } from "../storage/local.storage";
 import { config } from "../config";
 import { verifyDownloadToken } from "../utils/download-token";
 import { ALLOWED_MIME_TYPES } from "../config";
+import { enqueueJob } from "../queue/job.queue";
 
 interface GetReportOptions {
   view: "full" | "summary";
@@ -89,7 +90,11 @@ export function createReport(input: CreateReportInput, userId: string): Report {
   };
 
   const created = reportRepository.create(report);
-
+  enqueueJob(created.id, "report-created", {
+    reportId: created.id,
+    businessKey: created.businessKey,
+    createdBy: userId,
+  });
   logger.info({
     type: "report_created",
     reportId: created.id,
